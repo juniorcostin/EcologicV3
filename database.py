@@ -1,11 +1,8 @@
-def insertdispositivos(nome, tipo, ativo, entidade_id, data_criacao, data_atualizacao, usuario, descricao = False):
-    return {
-        "nome": nome,
-        "tipo": tipo,
-        "descrição": descricao,
-        "ativo": ativo,
-        "ID da entidade": entidade_id,
-        "data da criação": data_criacao,
-        "data da atualização": data_atualizacao,
-        "usuario": usuario
-    }
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+
+base = declarative_base()
+engine = create_engine("postgresql://darkroom9282:v2mzt67cZYDdAq@168.138.150.79:49154/ecologicDEV")
+session = sessionmaker(bind=engine)
+
