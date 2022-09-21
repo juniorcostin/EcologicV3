@@ -7,7 +7,7 @@ import json
 app = Flask(__name__)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://darkroom9282:v2mzt67cZYDdAq@168.138.150.79:49154/ecologicDEV'
+app.config['SQLALCHEMY_DATABASE_URI'] = '**********'
 
 db = SQLAlchemy(app)
 
