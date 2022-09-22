@@ -1,134 +1,155 @@
-from flask import Flask, Response, request
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
+from flask import request, Response
+from flask_login import current_user
 import json
+from main import app
+from modules.login import login_usuario
+from modules.dispositivos import dispositivos_seleciona_todos, dispositivos_seleciona_um, dispositivos_criar, dispositivos_atualiza, dispositivos_deleta
+from modules.entidades import entidades_seleciona_todos, entidades_seleciona_um, entidades_criar, entidade_atualiza, entidade_deleta
+from modules.usuarios import usuarios_seleciona_todos, usuarios_seleciona_um, usuarios_criar, usuarios_atualiza, usuarios_deleta
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = True
-app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
-app.config['SQLALCHEMY_DATABASE_URI'] = '*******'
+####################### LOGIN ############################
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    body = request.get_json()
+    return login_usuario(body)
 
-db = SQLAlchemy(app)
-now = datetime.now()
-
-class Dispositivos(db.Model):
-    dispositivo_id = db.Column(db.Integer, primary_key = True)
-    dispositivo_nome = db.Column(db.String(40))
-    dispositivo_tipo = db.Column(db.String(40))
-    dispositivo_ativo = db.Column(db.Boolean)
-    dispositivo_descricao = db.Column(db.String(200))
-    data_criacao = db.Column(db.Date)
-    hora_criacao = db.Column(db.Time)
-    data_atualizacao = db.Column(db.Date)
-    hora_atualizacao = db.Column(db.Time)
-    usuario_criador_id = db.Column(db.Integer)
-    entidade_id = db.Column(db.Integer)
-
-    def to_json(self):
-        return {"dispositivo_id": self.dispositivo_id,
-                "dispositivo_nome": self.dispositivo_nome,
-                "dispositivo_tipo": self.dispositivo_tipo,
-                "dispositivo_ativo": self.dispositivo_ativo,
-                "dispositivo_descricao": self.dispositivo_descricao,
-                "data_criacao": self.data_criacao,
-                "hora_criacao": self.hora_criacao,
-                "data_atualizacao": self.data_atualizacao,
-                "hora_atualizacao": self.hora_atualizacao,
-                "usuario_criador_id": self.usuario_criador_id,
-                "entidade_id": self.entidade_id
-                }
-
-#Lista todos os Dispositivos
+####################### DISPOSITIVOS ############################
+#Endpoint GET /dispositivos para listar todos os Dispositivos
 @app.route("/dispositivos", methods=["GET"])
 def seleciona_dispositivos():
-    dispositivos = Dispositivos.query.all()
-    dispositivos_json = [dispositivo.to_json() for dispositivo in dispositivos]
+    if current_user.is_authenticated:
+        return dispositivos_seleciona_todos()
+    return gera_response(401, "Dispositivos", "Autenticação", "Você precisa estar autenticado para realizar essa consulta")
 
-    return gera_response(200, "Dispositivos", dispositivos_json, "Dispositivos Listados Corretamente")
-
-#Lista apenas um Dispositivo
+#Endpoint GET /dispositivos/<id> para lista apenas um Dispositivo
 @app.route("/dispositivos/<id>", methods=["GET"])
 def seleciona_dispositivo(id):
-    dispositivos = Dispositivos.query.filter_by(dispositivo_id=id).first()
-    dispositivos_json = dispositivos.to_json()
+    if current_user.is_authenticated:
+        return dispositivos_seleciona_um(id)
+    return gera_response(401, "Dispositivos", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
 
-    return gera_response(200, "Dispositivo", dispositivos_json, "Dispositivo Listado Corretamente")
-
-#Inclui novos Dispositivos
+#Endpoint POST /dispositivos para incluir um novo dispositivo
 @app.route("/dispositivos", methods=["POST"])
-def cria_dispositivo():
-    body = request.get_json()
-    try:
-        dispositivo = Dispositivos(
-            dispositivo_nome=body["dispositivo_nome"],
-            dispositivo_tipo=body["dispositivo_tipo"],
-            dispositivo_ativo=body["dispositivo_ativo"],
-            dispositivo_descricao=body["dispositivo_descricao"],
-            data_criacao=now.strftime('%Y-%m-%d'),
-            hora_criacao=now.strftime('%H:%M:%S'),
-            data_atualizacao=now.strftime('%Y-%m-%d'),
-            hora_atualizacao=now.strftime('%H:%M:%S'),
-            usuario_criador_id=body["usuario_criador_id"],
-            entidade_id=body["entidade_id"]
-        )
-        db.session.add(dispositivo)
-        db.session.commit()
-        return gera_response(201, "Dispositivo", dispositivo.to_json(), "Dispositivo criado com sucesso")
-    except Exception as e:
-        print(e)
-        return gera_response(400, "Dispositivo", {}, f"Erro ao Cadastrar Dispositivo:{e}")
+def cria_dispositivos():
+    if current_user.is_authenticated:
+        body = request.get_json()
+        return dispositivos_criar(body)
+    return gera_response(401, "Dispositivos", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
 
-#Atualiza um Dispositivo
-@app.route("/dispositivo/<id>", methods=["PUT"])
+#Endpoint PUT /dispositivos/<id> para atualizar um Dispositivo
+@app.route("/dispositivos/<id>", methods=["PUT"])
 def atualiza_dispositivo(id):
-    dispositivos = Dispositivos.query.filter_by(dispositivo_id=id).first()
-    body = request.get_json()
-    data_atualizacao = now.strftime('%Y-%m-%d')
-    hora_atualizacao = now.strftime('%H:%M:%S')
-    try:
-        if "dispositivo_nome" in body:
-            dispositivos.dispositivo_nome = body["dispositivo_nome"]
-            dispositivos.data_atualizacao = data_atualizacao
-            dispositivos.hora_atualizacao = hora_atualizacao
-        if "dispositivo_tipo" in body:
-            dispositivos.dispositivo_tipo = body["dispositivo_tipo"]
-            dispositivos.data_atualizacao = data_atualizacao
-            dispositivos.hora_atualizacao = hora_atualizacao
-        if "dispositivo_ativo" in body:
-            dispositivos.dispositivo_ativo = body["dispositivo_ativo"]
-            dispositivos.data_atualizacao = data_atualizacao
-            dispositivos.hora_atualizacao = hora_atualizacao
-        if "dispositivo_descricao" in body:
-            dispositivos.dispositivo_descricao = body["dispositivo_descricao"]
-            dispositivos.data_atualizacao = data_atualizacao
-            dispositivos.hora_atualizacao = hora_atualizacao
+    if current_user.is_authenticated:
+        body = request.get_json()
+        return dispositivos_atualiza(id, body)
+    return gera_response(401, "Dispositivos", "Autenticação", "Você precisa estar autenticado para realizar essa consulta")
 
-        db.session.add(dispositivos)
-        db.session.commit()
-        return gera_response(200, "Dispositivo", dispositivos.to_json(), "Dispositivo atualizado com sucesso")
-    except Exception as e:
-        return gera_response(400, "Dispositivo", {}, f"Erro ao Atualizar Dispositivo:{e}")
-
-
-@app.route("/dispositivo/<id>", methods=["DELETE"])
+#Endpoint DELETE /dispositivos/<id> para deletar um dispositivo
+@app.route("/dispositivos/<id>", methods=["DELETE"])
 def deleta_dispositivo(id):
-    dispositivos = Dispositivos.query.filter_by(dispositivo_id=id).first()
+    if current_user.is_authenticated:
+        return dispositivos_deleta(id)
+    return gera_response(401, "Dispositivos", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
 
-    try:
-        db.session.delete(dispositivos)
-        db.session.commit()
-        return gera_response(200, "Dispositivo", dispositivos.to_json(), "Dispositivo deletado com sucesso")
-    except Exception as e:
-        return gera_response(400, "Dispositivo", {}, f"Erro ao deletar Dispositivo:{e}")
+####################### ENTIDADES ############################
+
+#Endpoint GET /entidades para listar todos as Entidades
+@app.route("/entidades", methods=["GET"])
+def seleciona_entidades():
+    if current_user.is_authenticated:
+        return entidades_seleciona_todos()
+    return gera_response(401, "Entidades", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
+
+#Endpoint GET /dispositivos/<id> para lista apenas uma entidade
+@app.route("/entidades/<id>", methods=["GET"])
+def seleciona_entidade(id):
+    if current_user.is_authenticated:
+        return entidades_seleciona_um(id)
+    return gera_response(401, "Entidades", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
+
+#Endpoint POST /entidades para incluir uma nova entidade
+@app.route("/entidades", methods=["POST"])
+def cria_entidade():
+    if current_user.is_authenticated:
+        body = request.get_json()
+        return entidades_criar(body)
+    return gera_response(401, "Entidades", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
+
+#Endpoint PUT /entidades/<id> para atualizar uma entidade
+@app.route("/entidades/<id>", methods=["PUT"])
+def atualiza_entidade(id):
+    if current_user.is_authenticated:
+        body = request.get_json()
+        return entidade_atualiza(id, body)
+    return gera_response(401, "Entidades", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
+
+#Endpoint DELETE /entidades/<id> para deletar uma entidade
+@app.route("/entidades/<id>", methods=["DELETE"])
+def deleta_entidade(id):
+    if current_user.is_authenticated:
+        return entidade_deleta(id)
+    return gera_response(401, "Entidades", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
+
+####################### USUARIOS ############################
+#Endpoint GET /usuarios para listar todos os Dispositivos
+@app.route("/usuarios", methods=["GET"])
+def seleciona_usuarios():
+    if current_user.is_authenticated:
+        return usuarios_seleciona_todos()
+    return gera_response(401, "Usuarios", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
+
+#Endpoint GET /usuarios/<id> para lista apenas um Dispositivo
+@app.route("/usuarios/<id>", methods=["GET"])
+def seleciona_usuario(id):
+    if current_user.is_authenticated:
+        return usuarios_seleciona_um(id)
+    return gera_response(401, "Usuarios", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
+#Endpoint POST /usuarios para incluir um novo dispositivo
+@app.route("/usuarios", methods=["POST"])
+def cria_usuarios():
+    if current_user.is_authenticated:
+        body = request.get_json()
+        return usuarios_criar(body)
+    return gera_response(401, "Usuarios", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
+
+#Endpoint PUT /usuarios/<id> para atualizar um Dispositivo
+@app.route("/usuarios/<id>", methods=["PUT"])
+def atualiza_usuarios(id):
+    if current_user.is_authenticated:
+        body = request.get_json()
+        return usuarios_atualiza(id, body)
+    return gera_response(401, "Usuarios", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
+
+#Endpoint DELETE /usuarios/<id> para deletar um dispositivo
+@app.route("/usuarios/<id>", methods=["DELETE"])
+def deleta_usuarios(id):
+    if current_user.is_authenticated:
+        return usuarios_deleta(id)
+    return gera_response(401, "Usuarios", "Autenticação",
+                         "Você precisa estar autenticado para realizar essa consulta")
 
 
+##################### Função para a geração de mensagens de erro/sucesso ########################
 def gera_response(status, nome_conteudo, conteudo, mensagem = False):
     body = {}
     body[nome_conteudo] = conteudo
-
     if(mensagem):
         body["mensagem"] = mensagem
-
     return Response(json.dumps(body, default=str), status= status, mimetype="application/json")
 
+
+#Inicializador Flask
 app.run()
+
