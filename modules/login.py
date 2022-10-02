@@ -1,6 +1,10 @@
 from modules.usuarios import Usuarios
-from flask import Response
-from flask_login import login_user
+from flask import Response, jsonify
+from main import app
+import json
+import datetime
+import jwt
+
 import json
 
 def login_usuario(body):
@@ -9,8 +13,16 @@ def login_usuario(body):
     valida_usuario = Usuarios.query.filter_by(usuario_email=email).first()
     if not valida_usuario or not valida_usuario.verifica_senha(usuario_senha):
         return gera_response(401, "Login", email, "Usuario ou senha incorretos")
-    login_user(valida_usuario)
-    return "usuario logado"
+
+    
+    payload = {
+        "id": valida_usuario.usuario_id,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
+    }
+
+    token = jwt.encode(payload, key=app.config["SECRET_KEY"], algorithm="HS256")
+
+    return jsonify({"token": token})
 
 ##################### Função para a geração de mensagens de erro/sucesso ########################
 def gera_response(status, nome_conteudo, conteudo, mensagem = False):

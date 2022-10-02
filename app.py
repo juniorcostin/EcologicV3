@@ -1,6 +1,7 @@
 # Imports nencessários para que os Endpoints funcionem corretamente
 from flask import request, Response
 from flask_login import current_user
+from authenticate import jwt_required
 import json
 from main import app
 from modules.login import login_usuario
@@ -21,11 +22,10 @@ def login():
 
 # Endpoint GET que lista todos os dispositivos cadastrados dentro do banco de dados
 @app.route("/dispositivos", methods=["GET"])
-def seleciona_dispositivos():
+@jwt_required
+def seleciona_dispositivos(current_user):
     # IF que analisa se o usuário está autenticado ou não
-    if current_user.is_authenticated:
-        return dispositivos_seleciona_todos()
-    return gera_response(401, "Dispositivos", "Autenticação", "Você precisa estar autenticado para realizar essa consulta")
+    return dispositivos_seleciona_todos()
 
 # Endpoint GET que lista apenas um dispositivo, sendo filtrado pelo ID
 # O ID deve ser informado na URL e também deve estar cadastrado no banco de dados

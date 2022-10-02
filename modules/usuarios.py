@@ -1,17 +1,14 @@
-from main import db, login_manager
+from main import db, ma
 from flask import Response
-from flask_login import UserMixin
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
 
 now = datetime.now()
-@login_manager.user_loader
-def usuario_logado(usuario_id):
-    return Usuarios.query.filter_by(usuario_id=usuario_id).first()
+
 
 #CLASS para a criação da tabela no banco e transformação dos dados em JSON
-class Usuarios(db.Model, UserMixin):
+class Usuarios(db.Model):
     usuario_id = db.Column(db.Integer, primary_key=True)
     usuario_primeiro_nome = db.Column(db.String(100), nullable=False)
     usuario_segundo_nome = db.Column(db.String(100), nullable=False)
@@ -75,9 +72,6 @@ class Usuarios(db.Model, UserMixin):
                 "usuario_criador_id": self.usuario_criador_id,
                 "usuario_atualizacao_id": self.usuario_atualizacao_id
                 }
-
-    def get_id(self):
-        return (self.usuario_id)
 
 def user_by_email(email):
     try:
