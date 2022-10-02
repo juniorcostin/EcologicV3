@@ -1,24 +1,25 @@
+# Imports nencessários para que os Endpoints funcionem corretamente
 from main import db
 from flask import Response
-from datetime import datetime
 import json
 
-now = datetime.now()
+####################### DATABASE #######################
 
-#CLASS para a criação da tabela no banco e transformação dos dados em JSON
+# CLASS que realiza a criação das colunas no banco de dados caso ele já não esteja incluso
+# Também possui a função to_json que converte os campos do banco de dados para JSON
 class Dispositivos(db.Model):
     dispositivo_id = db.Column(db.Integer, primary_key = True)
-    dispositivo_nome = db.Column(db.String(40))
-    dispositivo_tipo = db.Column(db.String(40))
-    dispositivo_ativo = db.Column(db.Boolean)
-    dispositivo_descricao = db.Column(db.String(200))
-    data_criacao = db.Column(db.Date)
-    hora_criacao = db.Column(db.Time)
-    data_atualizacao = db.Column(db.Date)
-    hora_atualizacao = db.Column(db.Time)
-    usuario_criador_id = db.Column(db.Integer)
-    entidade_id = db.Column(db.Integer)
-    usuario_atualizacao_id = db.Column(db.Integer)
+    dispositivo_nome = db.Column(db.String(40), nullable=False)
+    dispositivo_tipo = db.Column(db.String(40), nullable=False)
+    dispositivo_ativo = db.Column(db.Boolean, nullable=False)
+    dispositivo_descricao = db.Column(db.String(200), nullable=False)
+    data_criacao = db.Column(db.Date, nullable=False)
+    hora_criacao = db.Column(db.Time, nullable=False)
+    data_atualizacao = db.Column(db.Date, nullable=False)
+    hora_atualizacao = db.Column(db.Time, nullable=False)
+    usuario_criador_id = db.Column(db.Integer, nullable=False)
+    entidade_id = db.Column(db.Integer, nullable=False)
+    usuario_atualizacao_id = db.Column(db.Integer, nullable=False)
 
     def to_json(self):
         return {"dispositivo_id": self.dispositivo_id,
@@ -35,17 +36,26 @@ class Dispositivos(db.Model):
                 "usuario_atualizacao_id": self.usuario_atualizacao_id
                 }
 
-#Endpoint GET /dispositivos para listar todos os Dispositivos
+# Endpoint GET que lista todos os dispositivos cadastrados dentro do banco de dados
 def dispositivos_seleciona_todos():
-    dispositivos = Dispositivos.query.all()
-    dispositivos_json = [dispositivo.to_json() for dispositivo in dispositivos]
-    return gera_response(200, "Dispositivos", dispositivos_json, "Dispositivos Listados Corretamente")
+    try:
+        dispositivos = Dispositivos.query.all()
+        dispositivos_json = [dispositivo.to_json() for dispositivo in dispositivos]
+        return gera_response(200, "Dispositivos", dispositivos_json, "Dispositivos listados com sucesso!")
+    except Exception as e:
+        return gera_response(400, "Dispositivos", {}, f"Falha ao listar dispositivos! Mensagem: {e}")
 
-#Endpoint GET /dispositivos/<id> para lista apenas um Dispositivo
+# Endpoint GET que lista apenas um dispositivo, sendo filtrado pelo ID
+# O ID deve ser informado na URL e também deve estar cadastrado no banco de dados
 def dispositivos_seleciona_um(id):
-    dispositivos = Dispositivos.query.filter_by(dispositivo_id=id).first()
-    dispositivos_json = dispositivos.to_json()
-    return gera_response(200, "Dispositivo", dispositivos_json, "Dispositivo Listado Corretamente")
+    if id not in Dispositivos.query.filter_by(dispositivo_id=id).first():
+        return gera_response(400, "Dispositivos", {}, f"Falha ao listar dispositivo! Mensagem: Dispositivo {id} não foi encontrado no banco de dados")
+    try:
+        dispositivos = Dispositivos.query.filter_by(dispositivo_id=id).first()
+        dispositivos_json = dispositivos.to_json()
+        return gera_response(200, "Dispositivos", dispositivos_json, "Dispositivo listado com sucesso!")
+    except Exception as e:
+        return gera_response(400, "Dispositivos", {}, f"Falha ao listar dispositivo! Mensagem: {e}")
 
 #Endpoint POST /dispositivos para incluir um novo dispositivo
 def dispositivos_criar(body):
@@ -55,10 +65,10 @@ def dispositivos_criar(body):
             dispositivo_tipo=body["dispositivo_tipo"],
             dispositivo_ativo=body["dispositivo_ativo"],
             dispositivo_descricao=body["dispositivo_descricao"],
-            data_criacao=now.strftime('%Y-%m-%d'),
-            hora_criacao=now.strftime('%H:%M:%S'),
-            data_atualizacao=now.strftime('%Y-%m-%d'),
-            hora_atualizacao=now.strftime('%H:%M:%S'),
+            data_criacao=body["data_criacao"],
+            hora_criacao=body["hora_criacao"],
+            data_atualizacao=["data_atualizacao"],
+            hora_atualizacao=["hora_atualizacao"],
             usuario_criador_id=body["usuario_criador_id"],
             entidade_id=body["entidade_id"],
             usuario_atualizacao_id=body["usuario_atualizacao_id"]
@@ -73,33 +83,18 @@ def dispositivos_criar(body):
 #Endpoint PUT /dispositivos/<id> para atualizar um Dispositivo
 def dispositivos_atualiza(id, body):
     dispositivos = Dispositivos.query.filter_by(dispositivo_id=id).first()
-    data_atualizacao = now.strftime('%Y-%m-%d')
-    hora_atualizacao = now.strftime('%H:%M:%S')
     try:
         if "dispositivo_nome" in body:
             dispositivos.dispositivo_nome = body["dispositivo_nome"]
-            ###### Ajustar data/hora e id usuario atualizacao
-            dispositivos.data_atualizacao = data_atualizacao
-            dispositivos.hora_atualizacao = hora_atualizacao
-            dispositivos.usuario_atualizacao_id = body["usuario_atualizacao_id"]
+
         if "dispositivo_tipo" in body:
             dispositivos.dispositivo_tipo = body["dispositivo_tipo"]
-            ###### Ajustar data/hora e id usuario atualizacao
-            dispositivos.data_atualizacao = data_atualizacao
-            dispositivos.hora_atualizacao = hora_atualizacao
-            dispositivos.usuario_atualizacao_id = body["usuario_atualizacao_id"]
+
         if "dispositivo_ativo" in body:
             dispositivos.dispositivo_ativo = body["dispositivo_ativo"]
-            ###### Ajustar data/hora e id usuario atualizacao
-            dispositivos.data_atualizacao = data_atualizacao
-            dispositivos.hora_atualizacao = hora_atualizacao
-            dispositivos.usuario_atualizacao_id = body["usuario_atualizacao_id"]
+
         if "dispositivo_descricao" in body:
             dispositivos.dispositivo_descricao = body["dispositivo_descricao"]
-            ###### Ajustar data/hora e id usuario atualizacao
-            dispositivos.data_atualizacao = data_atualizacao
-            dispositivos.hora_atualizacao = hora_atualizacao
-            dispositivos.usuario_atualizacao_id = body["usuario_atualizacao_id"]
 
         db.session.add(dispositivos)
         db.session.commit()

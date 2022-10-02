@@ -78,6 +78,13 @@ class Usuarios(db.Model, UserMixin):
 
     def get_id(self):
         return (self.usuario_id)
+
+def user_by_email(email):
+    try:
+        return Usuarios.query.filter(Usuarios.usuario_email == email).one()
+    except:
+        return None
+
 #Endpoint GET /usuarios para listar todos os usuarios
 def usuarios_seleciona_todos():
     usuarios = Usuarios.query.all()
