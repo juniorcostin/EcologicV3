@@ -43,8 +43,6 @@ def jwt_required(f):
 def gera_response(status, nome_conteudo, conteudo, mensagem = False):
     body = {}
     body[nome_conteudo] = conteudo
-
     if(mensagem):
         body["mensagem"] = mensagem
-
     return Response(json.dumps(body, default=str), status= status, mimetype="application/json")

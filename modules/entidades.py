@@ -1,4 +1,4 @@
-from main import db
+from config.config import db
 from flask import Response
 from datetime import datetime
 import json

@@ -1,5 +1,5 @@
 # Imports nencessários para que os Endpoints funcionem corretamente
-from main import db
+from config.config import db
 from flask import Response
 import json
 
@@ -111,9 +111,6 @@ def dispositivos_deleta(id):
         return gera_response(200, "Dispositivo", dispositivos.to_json(), "Dispositivo deletado com sucesso")
     except Exception as e:
         return gera_response(400, "Dispositivo", {}, f"Erro ao deletar Dispositivo:{e}")
-
-
-
 
 ##################### Função para a geração de mensagens de erro/sucesso ########################
 def gera_response(status, nome_conteudo, conteudo, mensagem = False):

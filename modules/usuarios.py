@@ -1,4 +1,4 @@
-from main import db, ma
+from config.config import db, ma
 from flask import Response
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
