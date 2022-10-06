@@ -1,6 +1,7 @@
 # Imports nencessários para que os Endpoints funcionem corretamente
-from config.config import db
+from config.config import db, admin
 from flask import Response
+from admin.admin import tabela_dispositivos
 import json
 
 ####################### DATABASE #######################
@@ -36,10 +37,14 @@ class Dispositivos(db.Model):
                 "usuario_atualizacao_id": self.usuario_atualizacao_id
                 }
 
+# Paramentro para criar a tabela dentro da interface Admin do sistema
+admin.add_view(tabela_dispositivos(Dispositivos, db.session))
+
 # Endpoint GET que lista todos os dispositivos cadastrados dentro do banco de dados
-def dispositivos_seleciona_todos():
+def dispositivos_seleciona_todos(current_user):
     try:
-        dispositivos = Dispositivos.query.all()
+        entidade = current_user.entidade_id
+        dispositivos = Dispositivos.query.filter_by(entidade_id = entidade)
         dispositivos_json = [dispositivo.to_json() for dispositivo in dispositivos]
         return gera_response(200, "Dispositivos", dispositivos_json, "Dispositivos listados com sucesso!")
     except Exception as e:
@@ -47,11 +52,18 @@ def dispositivos_seleciona_todos():
 
 # Endpoint GET que lista apenas um dispositivo, sendo filtrado pelo ID
 # O ID deve ser informado na URL e também deve estar cadastrado no banco de dados
-def dispositivos_seleciona_um(id):
-    if id not in Dispositivos.query.filter_by(dispositivo_id=id).first():
-        return gera_response(400, "Dispositivos", {}, f"Falha ao listar dispositivo! Mensagem: Dispositivo {id} não foi encontrado no banco de dados")
+def dispositivos_seleciona_um(id, current_user):
+    # Variáveis para validação de permissionamento
+    usuario_entidade_id = current_user.entidade_id
+    valida_dispositivos = Dispositivos.query.filter_by(dispositivo_id=id).first()
+    valida_dispositivos = valida_dispositivos.to_json()
+
+    # IF que valida se o campo entidade_id do dispositivo é igual há entidade_id vinculada ao usuário
+    if valida_dispositivos["entidade_id"] != usuario_entidade_id:
+        return gera_response(400, "Dispositivos", {}, f"Falha ao listar dispositivo! Mensagem: Você não tem permissão para listar esse dispositivo")
+    
     try:
-        dispositivos = Dispositivos.query.filter_by(dispositivo_id=id).first()
+        dispositivos = Dispositivos.query.filter_by(dispositivo_id=id, entidade_id = usuario_entidade_id).first()
         dispositivos_json = dispositivos.to_json()
         return gera_response(200, "Dispositivos", dispositivos_json, "Dispositivo listado com sucesso!")
     except Exception as e:
@@ -67,8 +79,8 @@ def dispositivos_criar(body):
             dispositivo_descricao=body["dispositivo_descricao"],
             data_criacao=body["data_criacao"],
             hora_criacao=body["hora_criacao"],
-            data_atualizacao=["data_atualizacao"],
-            hora_atualizacao=["hora_atualizacao"],
+            data_atualizacao=body["data_atualizacao"],
+            hora_atualizacao=body["hora_atualizacao"],
             usuario_criador_id=body["usuario_criador_id"],
             entidade_id=body["entidade_id"],
             usuario_atualizacao_id=body["usuario_atualizacao_id"]

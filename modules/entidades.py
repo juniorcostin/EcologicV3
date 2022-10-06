@@ -1,6 +1,7 @@
-from config.config import db
+from config.config import db, admin
 from flask import Response
 from datetime import datetime
+from admin.admin import tabela_entidades
 import json
 
 now = datetime.now()
@@ -37,6 +38,9 @@ class Entidades(db.Model):
                 "hora_criacao": self.hora_criacao,
                 "entidade_nome": self.entidade_nome
                 }
+
+# Paramentro para criar a tabela dentro da interface Admin do sistema
+admin.add_view(tabela_entidades(Entidades, db.session))
 
 #Endpoint GET /entidades para listar todos as Entidades
 def entidades_seleciona_todos():

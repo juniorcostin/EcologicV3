@@ -1,11 +1,15 @@
-from config.config import db, ma
+from config.config import db, admin
 from flask import Response
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
+from admin.admin import tabela_usuarios
 
 now = datetime.now()
 
+
+######### LEMBRAR DE CRIAR UMA FUNÇÃO PARA PEGAR A DATA E HORA ATUAIS########
+# https://stackoverflow.com/questions/51111624/python-how-to-update-datetime-now
 
 #CLASS para a criação da tabela no banco e transformação dos dados em JSON
 class Usuarios(db.Model):
@@ -14,7 +18,6 @@ class Usuarios(db.Model):
     usuario_segundo_nome = db.Column(db.String(100), nullable=False)
     usuario_email = db.Column(db.String(100), nullable=False, unique=True)
     usuario_senha = db.Column(db.String(255), nullable=False)
-    grupo_id = db.Column(db.Integer, nullable=False)
     usuario_ativo = db.Column(db.Boolean, nullable=False)
     entidade_id = db.Column(db.Integer, nullable=False)
     data_criacao = db.Column(db.Date)
@@ -23,13 +26,16 @@ class Usuarios(db.Model):
     hora_atualizacao = db.Column(db.Time)
     usuario_criador_id = db.Column(db.Integer)
     usuario_atualizacao_id = db.Column(db.Integer)
+    admin = db.Column(db.Boolean, nullable=False)
+    cadastrar = db.Column(db.Boolean, nullable=False)
+    editar = db.Column(db.Boolean, nullable=False)
+    deletar = db.Column(db.Boolean, nullable=False)
 
     def __init__(self,
                  usuario_primeiro_nome,
                  usuario_segundo_nome,
                  usuario_email,
                  usuario_senha,
-                 grupo_id,
                  usuario_ativo,
                  entidade_id,
                  data_criacao,
@@ -37,13 +43,16 @@ class Usuarios(db.Model):
                  data_atualizacao,
                  hora_atualizacao,
                  usuario_criador_id,
-                 usuario_atualizacao_id
+                 usuario_atualizacao_id,
+                 admin,
+                 cadastrar,
+                 editar,
+                 deletar
                  ):
         self.usuario_primeiro_nome = usuario_primeiro_nome
         self.usuario_segundo_nome = usuario_segundo_nome
         self.usuario_email = usuario_email
         self.usuario_senha = generate_password_hash(usuario_senha)
-        self.grupo_id = grupo_id
         self.usuario_ativo = usuario_ativo
         self.entidade_id = entidade_id
         self.data_criacao = data_criacao
@@ -52,6 +61,10 @@ class Usuarios(db.Model):
         self.hora_atualizacao = hora_atualizacao
         self.usuario_criador_id = usuario_criador_id
         self.usuario_atualizacao_id = usuario_atualizacao_id
+        self.admin = admin
+        self.cadastrar = cadastrar
+        self.editar = editar
+        self.deletar = deletar
 
     def verifica_senha(self, senha):
         return check_password_hash(self.usuario_senha, senha)
@@ -62,7 +75,6 @@ class Usuarios(db.Model):
                 "usuario_segundo_nome": self.usuario_segundo_nome,
                 "usuario_email": self.usuario_email,
                 "usuario_senha": self.usuario_senha,
-                "grupo_id": self.grupo_id,
                 "usuario_ativo": self.usuario_ativo,
                 "entidade_id": self.entidade_id,
                 "data_criacao": self.data_criacao,
@@ -70,8 +82,15 @@ class Usuarios(db.Model):
                 "data_atualizacao": self.data_atualizacao,
                 "hora_atualizacao": self.hora_atualizacao,
                 "usuario_criador_id": self.usuario_criador_id,
-                "usuario_atualizacao_id": self.usuario_atualizacao_id
+                "usuario_atualizacao_id": self.usuario_atualizacao_id,
+                "admin": self.admin,
+                "cadastrar": self.cadastrar,
+                "editar": self.editar,
+                "deletar": self.deletar,
                 }
+
+# Paramentro para criar a tabela dentro da interface Admin do sistema
+admin.add_view(tabela_usuarios(Usuarios, db.session))
 
 def user_by_email(email):
     try:
