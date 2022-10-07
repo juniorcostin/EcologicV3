@@ -1,7 +1,6 @@
 # Imports nencessários para que os Endpoints funcionem corretamente
 import json
 from datetime import datetime
-from multiprocessing import set_forkserver_preload
 
 from admin.admin import tabela_usuarios
 from config.config import admin, db
@@ -223,17 +222,26 @@ def usuarios_atualiza(id, body, current_user):
         
         # IF para validar se a entidade do usuário logado é igual ao do usuário informado
         if usuario_json["entidade_id"] != login_entidade_id:
-            return gera_response(403, "Usuarios", {}, "Você não tem permissão para editar o usuário!")
+            return gera_response(403, "Usuarios", {}, "Você não pertence a entidade deste usuário!")
 
         # IF para validar se o usuário tem as permissões nencessárias para editar o usuário
         if login_admin == True or login_editar == True:
+
+            # IF para iniciar as validações dos campos informados no body
             if "usuario_email" in body:
-                usuarios.usuario_email = body["usuario_email"]
+                usuario_email = body["usuario_email"]
+                # IF para validar se o e-mail já existe no banco de dados
+                if Usuarios.query.filter_by(usuario_email=usuario_email).first():
+                    return gera_response(400, "Usuarios", {}, f"Falha ao atualizar usuario! Mensagem: O email:{usuario_email} já existe!") 
+                usuarios.usuario_email = usuario_email
                 usuarios.data_atualizacao = data()
                 usuarios.hora_atualizacao = hora()
                 usuarios.usuario_atualizacao_id = login_usuario_id
             if "usuario_senha" in body:
-                usuarios.usuario_senha = body["usuario_senha"]
+                usuario_senha = body["usuario_senha"]
+                # Função para gerar um password criptografado dentro do banco de dados
+                usuario_senha = generate_password_hash(usuario_senha)
+                usuarios.usuario_senha = usuario_senha
                 usuarios.data_atualizacao = data()
                 usuarios.hora_atualizacao = hora()
                 usuarios.usuario_atualizacao_id = login_usuario_id
@@ -306,8 +314,6 @@ def usuarios_deleta(id, current_user):
 def gera_response(status, nome_conteudo, conteudo, mensagem = False):
     body = {}
     body[nome_conteudo] = conteudo
-
     if(mensagem):
         body["mensagem"] = mensagem
-
     return Response(json.dumps(body, default=str), status= status, mimetype="application/json")
