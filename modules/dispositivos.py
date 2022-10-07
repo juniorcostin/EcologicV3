@@ -1,10 +1,13 @@
 # Imports nencessários para que os Endpoints funcionem corretamente
 import json
 from datetime import datetime
+from itertools import count
 
 from admin.admin import tabela_dispositivos
 from config.config import admin, db
 from flask import Response
+
+from modules.entidades import Entidades
 
 
 # Funções para definição de data/hora para alteração e criação
@@ -110,6 +113,12 @@ def dispositivos_criar(body, current_user):
         login_entidade_id = current_user.entidade_id
         login_admin = current_user.admin
         login_cadastrar = current_user.cadastrar
+        quantidade_permitida = Entidades.query.filter_by(entidade_id=login_entidade_id).first()
+        quantidade_permitida = quantidade_permitida.to_json()
+
+        # IF para validar quantos dispositivos a entidade permite
+        if Dispositivos.query.filter_by(entidade_id=login_entidade_id).count() >= quantidade_permitida["dispositivos_quantidade"]:
+            return gera_response(400, "Dispositivos", {}, f"Falha ao cadastrar dispositivo! Mensagem: A entidade atingiu o limite máximo de dispostivios cadastrados")
 
         # IF que valida se o usuário tem as permissões necessárias para realizar a criação
         if login_admin == True or login_cadastrar == True:
@@ -134,7 +143,6 @@ def dispositivos_criar(body, current_user):
         else:
             return gera_response(403, "Dispositivos", {}, "Você não tem permissão para cadastrar o dispositivo!")
     except Exception as e:
-        print(e)
         return gera_response(400, "Dispositivos", {}, f"Falha ao cadastrar dispositivo! Mensagem:{e}")
 
 # Endpoint PUT responsável pela atualização de um dispositivo
