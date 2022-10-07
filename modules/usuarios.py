@@ -215,7 +215,7 @@ def usuarios_atualiza(id, body, current_user):
 
         # IF para validar se o ID informado está cadastrado no banco de dados
         if not Usuarios.query.filter_by(usuario_id=id).first():
-            return gera_response(400, "Usuarios", {}, f"Falha ao listar usuario! Mensagem: O usuário ID:{id} não existe!") 
+            return gera_response(400, "Usuarios", {}, f"Falha ao atualizar usuario! Mensagem: O usuário ID:{id} não existe!") 
 
         usuarios = Usuarios.query.filter_by(usuario_id=id).first()
         usuario_json = usuarios.to_json()
@@ -275,10 +275,14 @@ def usuarios_atualiza(id, body, current_user):
                 usuarios.data_atualizacao = data()
                 usuarios.hora_atualizacao = hora()
                 usuarios.usuario_atualizacao_id = login_usuario_id
-
+        
             db.session.add(usuarios)
             db.session.commit()
             return gera_response(200, "Usuarios", usuarios.to_json(), "Usuario atualizado com sucesso!")
+
+        else:
+            return gera_response(403, "Usuarios", {}, "Você não tem permissão para atualizar o usuário!")
+        
     except Exception as e:
         return gera_response(400, "Usuarios", {}, f"Erro ao Atualizar usuario:{e}")
 
