@@ -17,10 +17,10 @@ app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
 app.config['SQLALCHEMY_DATABASE_URI'] = db_uri
 app.config['SECRET_KEY'] = key
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)
-app.config['FLASK_ADMIN_SWATCH'] = 'Darkly'
+app.config['FLASK_ADMIN_SWATCH'] = 'Yeti'
 
 
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
 
-admin = Admin(app, name='Ecologic', template_mode='bootstrap3')
+admin = Admin(app, name='Ecologic', template_mode='bootstrap4')
