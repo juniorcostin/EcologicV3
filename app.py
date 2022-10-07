@@ -115,23 +115,23 @@ def deleta_entidade(id, current_user):
 @app.route(f"{api_endpoint_versao}usuarios", methods=["GET"])
 @jwt_required
 def seleciona_usuarios(current_user):
-        return usuarios_seleciona_todos()
+        return usuarios_seleciona_todos(current_user)
     
 # Endpoint GET que lista apenas um usuario, sendo filtrado pelo ID
 # O ID deve ser informado na URL e também deve estar cadastrado no banco de dados
 @app.route(f"{api_endpoint_versao}usuarios/<id>", methods=["GET"])
 @jwt_required
 def seleciona_usuario(id, current_user):
-        return usuarios_seleciona_um(id)
+        return usuarios_seleciona_um(id, current_user)
     
 # Endpoint POST que inclui um novo usuario no banco de dados
 # Deve ser informado um body no formato JSON com os campos corretos para que seja incluído
 @app.route(f"{api_endpoint_versao}usuarios", methods=["POST"])
 # Habilitar a obrigatoriedade de login para a criação de usuários
-#@jwt_required
-def cria_usuarios():
+@jwt_required
+def cria_usuarios(current_user):
         body = request.get_json()
-        return usuarios_criar(body)
+        return usuarios_criar(body, current_user)
 
 # Endpoint PUT que atualiza um usuario, sendo filtrado pelo ID
 # O ID deve ser informado na URL e também deve estar cadastrado no banco de dados
@@ -140,14 +140,14 @@ def cria_usuarios():
 @jwt_required
 def atualiza_usuarios(id, current_user):
         body = request.get_json()
-        return usuarios_atualiza(id, body)
+        return usuarios_atualiza(id, body, current_user)
 
 # Endpoint DELETE que deleta um usuario, sendo filtrado pelo ID
 # O ID deve ser informado na URL e também deve estar cadastrado no banco de dados
 @app.route(f"{api_endpoint_versao}usuarios/<id>", methods=["DELETE"])
 @jwt_required
 def deleta_usuarios(id, current_user):
-        return usuarios_deleta(id)
+        return usuarios_deleta(id, current_user)
 
 ##################### Função para a geração de mensagens de erro/sucesso ########################
 def gera_response(status, nome_conteudo, conteudo, mensagem = False):

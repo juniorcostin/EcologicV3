@@ -17,9 +17,14 @@ def login_usuario(body):
     # Variável que armazena o email filtrado pelo banco de dados
     valida_usuario = Usuarios.query.filter_by(usuario_email=email).first()
 
+    print(valida_usuario.to_json()["usuario_ativo"])
     # IF para validar se o email ou senha estão corretos e existem no banco de dados
     if not valida_usuario or not valida_usuario.verifica_senha(usuario_senha):
         return gera_response(401, "Login", email, "Usuario ou senha incorretos")
+
+    # IF para validar se o usuário está ativo ou não
+    if valida_usuario.to_json()["usuario_ativo"] == False:
+        return gera_response(403, "Login", email, "Usuario desativado")
 
     # Criação do playload para criação do token
     # Formatando o tempo de expiração com o timedelta 

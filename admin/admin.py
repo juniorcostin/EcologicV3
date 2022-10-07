@@ -31,6 +31,7 @@ class tabela_usuarios(ModelView):
         'cadastrar',
         'editar',
         'deletar',
+        'visualizar',
         'usuario_primeiro_nome',
         'usuario_segundo_nome',
         'usuario_email',

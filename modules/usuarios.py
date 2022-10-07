@@ -1,17 +1,26 @@
-from config.config import db, admin
-from flask import Response
-from datetime import datetime
-from werkzeug.security import generate_password_hash, check_password_hash
+# Imports nencessários para que os Endpoints funcionem corretamente
 import json
+from datetime import datetime
+from multiprocessing import set_forkserver_preload
+
 from admin.admin import tabela_usuarios
+from config.config import admin, db
+from flask import Response
+from werkzeug.security import check_password_hash, generate_password_hash
 
-now = datetime.now()
+# Funções para definição de data/hora para alteração e criação
+def data():
+    data = datetime.now()
+    return data.strftime('%Y-%m-%d')
+def hora():
+    hora = datetime.now()
+    return hora.strftime('%H:%M:%S')
 
+####################### DATABASE #######################
 
-######### LEMBRAR DE CRIAR UMA FUNÇÃO PARA PEGAR A DATA E HORA ATUAIS########
-# https://stackoverflow.com/questions/51111624/python-how-to-update-datetime-now
-
-#CLASS para a criação da tabela no banco e transformação dos dados em JSON
+# CLASS que realiza a criação das colunas no banco de dados caso ele já não esteja incluso
+# Também possui a função to_json que converte os campos do banco de dados para JSON
+# Além das definições para encriptografia de senhas 
 class Usuarios(db.Model):
     usuario_id = db.Column(db.Integer, primary_key=True)
     usuario_primeiro_nome = db.Column(db.String(100), nullable=False)
@@ -30,6 +39,7 @@ class Usuarios(db.Model):
     cadastrar = db.Column(db.Boolean, nullable=False)
     editar = db.Column(db.Boolean, nullable=False)
     deletar = db.Column(db.Boolean, nullable=False)
+    visualizar = db.Column(db.Boolean, nullable=False)
 
     def __init__(self,
                  usuario_primeiro_nome,
@@ -47,7 +57,8 @@ class Usuarios(db.Model):
                  admin,
                  cadastrar,
                  editar,
-                 deletar
+                 deletar,
+                 visualizar
                  ):
         self.usuario_primeiro_nome = usuario_primeiro_nome
         self.usuario_segundo_nome = usuario_segundo_nome
@@ -65,6 +76,7 @@ class Usuarios(db.Model):
         self.cadastrar = cadastrar
         self.editar = editar
         self.deletar = deletar
+        self.visualizar = visualizar
 
     def verifica_senha(self, senha):
         return check_password_hash(self.usuario_senha, senha)
@@ -87,109 +99,208 @@ class Usuarios(db.Model):
                 "cadastrar": self.cadastrar,
                 "editar": self.editar,
                 "deletar": self.deletar,
+                "visualizar": self.visualizar
                 }
 
 # Paramentro para criar a tabela dentro da interface Admin do sistema
 admin.add_view(tabela_usuarios(Usuarios, db.session))
 
+# Função que filtra usuários pelo e-mail
 def user_by_email(email):
     try:
         return Usuarios.query.filter(Usuarios.usuario_email == email).one()
     except:
         return None
 
-#Endpoint GET /usuarios para listar todos os usuarios
-def usuarios_seleciona_todos():
-    usuarios = Usuarios.query.all()
-    usuarios_json = [usuario.to_json() for usuario in usuarios]
-    return gera_response(200, "Usuarios", usuarios_json, "Usuarios Listados Corretamente")
-
-#Endpoint GET /usuarios/<id> para lista apenas um usuario
-def usuarios_seleciona_um(id):
-    usuarios = Usuarios.query.filter_by(usuario_id=id).first()
-    usuarios_json = usuarios.to_json()
-    return gera_response(200, "Usuarios", usuarios_json, "usuario Listado Corretamente")
-
-#Endpoint POST /usuarios para incluir um novo usuario
-def usuarios_criar(body):
+# Endpoint GET que lista todos os usuários cadastrados dentro do banco de dados
+def usuarios_seleciona_todos(current_user):
     try:
-        usuario = Usuarios(
-            usuario_primeiro_nome=body["usuario_primeiro_nome"],
-            usuario_segundo_nome=body["usuario_segundo_nome"],
-            usuario_email=body["usuario_email"],
-            usuario_senha=body["usuario_senha"],
-            data_criacao=now.strftime('%Y-%m-%d'),
-            hora_criacao=now.strftime('%H:%M:%S'),
-            data_atualizacao=now.strftime('%Y-%m-%d'),
-            hora_atualizacao=now.strftime('%H:%M:%S'),
-            grupo_id=body["grupo_id"],
-            usuario_ativo=body["usuario_ativo"],
-            entidade_id=body["entidade_id"],
-            usuario_criador_id=body["usuario_criador_id"],
-            usuario_atualizacao_id=body["usuario_atualizacao_id"]
-        )
-        db.session.add(usuario)
-        db.session.commit()
-        return gera_response(201, "Usuarios", usuario.to_json(), "Usuario criado com sucesso")
+        # Criação de variáveis para a validação se o usuário cupre os requisitos
+        login_entidade_id = current_user.entidade_id
+        login_admin = current_user.admin
+        login_visualizar = current_user.visualizar
+
+        # If para validar se o usuário tem as permissões
+        if login_admin == True or login_visualizar == True:
+            usuarios = Usuarios.query.filter_by(entidade_id=login_entidade_id)
+            usuarios_json = [usuario.to_json() for usuario in usuarios]
+            return gera_response(200, "Usuarios", usuarios_json, "Usuarios listados com sucesso!")
+        else:
+            return gera_response(403, "Usuarios", {}, "Você não tem permissão para listar os usuários!")
+    except Exception as e:
+        return gera_response(400, "Usuarios", {}, f"Falha ao listar usuarios! Mensagem: {e}")
+
+# Endpoint GET que lista apenas um dispositivo, sendo filtrado pelo ID
+# O ID deve ser informado na URL e também deve estar cadastrado no banco de dados
+def usuarios_seleciona_um(id, current_user):
+    try:
+        # Criação de variáveis para a validação se o usuário cupre os requisitos
+        login_entidade_id = current_user.entidade_id
+        login_admin = current_user.admin
+        login_visualizar = current_user.visualizar
+
+        # IF para validar se o ID informado está cadastrado no banco de dados
+        if not Usuarios.query.filter_by(usuario_id=id).first():
+            return gera_response(400, "Usuarios", {}, f"Falha ao listar usuario! Mensagem: O usuário ID:{id} não existe!")
+
+        # IF para validar se o usuário informado é da mesma entidade que o usuário logado
+        valida_entidade = Usuarios.query.filter_by(usuario_id=id).first()
+        if valida_entidade.to_json()["entidade_id"] != login_entidade_id:
+            return gera_response(403, "Usuarios", {}, "Você não tem permissão para listar o usuário!")
+
+        # If para validar se o usuário tem as permissões
+        if login_admin == True or login_visualizar == True:
+            usuario = Usuarios.query.filter_by(usuario_id=id, entidade_id=login_entidade_id).first()
+            usuarios_json = usuario.to_json()
+            return gera_response(200, "Usuarios", usuarios_json, "Usuario listado com sucesso!")
+        else:
+            return gera_response(403, "Usuarios", {}, "Você não tem permissão para listar o usuário!")
+    except Exception as e:
+        return gera_response(400, "Usuarios", {}, f"Falha ao listar usuario! Mensagem: {e}")
+
+# Endpoint POST que é responsável por realizar a criação de um novo usuário dentro do banco de dados
+# Deve ser informado o body da requisição com as informações corretas para a criação
+def usuarios_criar(body, current_user):
+    try:
+        # Criação de variáveis para a validação se o usuário cupre os requisitos
+        login_usuario_id = current_user.usuario_id
+        login_entidade_id = current_user.entidade_id
+        login_admin = current_user.admin
+        login_cadastrar = current_user.cadastrar
+        body_usuario_email = body["usuario_email"]
+
+        # IF para validar se o email informado já está cadastrado no banco de dados
+        if Usuarios.query.filter_by(usuario_email=body_usuario_email).first():
+            return gera_response(400, "Usuarios", {}, f"Falha ao criar usuario! Mensagem: O email {body_usuario_email} já existe!")
+
+        # IF que valida se o usuário tem as permissões necessárias para realizar a criação de outros usuários
+        if login_admin == True or login_cadastrar == True:
+            usuario = Usuarios(
+                usuario_primeiro_nome=body["usuario_primeiro_nome"],
+                usuario_segundo_nome=body["usuario_segundo_nome"],
+                usuario_email=body["usuario_email"],
+                usuario_senha=body["usuario_senha"],
+                data_criacao=data(),
+                hora_criacao=hora(),
+                data_atualizacao=data(),
+                hora_atualizacao=hora(),
+                usuario_ativo=body["usuario_ativo"],
+                entidade_id=login_entidade_id,
+                usuario_criador_id=login_usuario_id,
+                usuario_atualizacao_id=0,
+                admin=body["admin"],
+                cadastrar=body["cadastrar"],
+                editar=body["editar"],
+                deletar=body["deletar"],
+                visualizar=body["visualizar"]
+            )
+            db.session.add(usuario)
+            db.session.commit()
+            return gera_response(201, "Usuarios", usuario.to_json(), "Usuario cadastrado com sucesso!")
+        else:
+            return gera_response(403, "Usuarios", {}, "Você não tem permissão para cadastrar o usuário!")
     except Exception as e:
         print(e)
         return gera_response(400, "Usuarios", {}, f"Erro ao Cadastrar usuario:{e}")
 
-#Endpoint PUT /usuarios/<id> para atualizar um usuario
-def usuarios_atualiza(id, body):
-    usuarios = Usuarios.query.filter_by(usuario_id=id).first()
-    data_atualizacao = now.strftime('%Y-%m-%d')
-    hora_atualizacao = now.strftime('%H:%M:%S')
+# Endpoint PUT responsável pela atualização de usuários
+# Deve ser informado o ID do usuário existente no banco de dados
+# O body da requisição não necessáriamente precisa conter todos os campos
+def usuarios_atualiza(id, body, current_user):
     try:
-        if "usuario_email" in body:
-            usuarios.usuario_email = body["usuario_email"]
-            ###### Ajustar data/hora e id usuario atualizacao
-            usuarios.data_atualizacao = data_atualizacao
-            usuarios.hora_atualizacao = hora_atualizacao
-            usuarios.usuario_atualizacao_id = body["usuario_atualizacao_id"]
-        if "usuario_senha" in body:
-            usuarios.usuario_senha = body["usuario_senha"]
-            ###### Ajustar data/hora e id usuario atualizacao
-            usuarios.data_atualizacao = data_atualizacao
-            usuarios.hora_atualizacao = hora_atualizacao
-            usuarios.usuario_atualizacao_id = body["usuario_atualizacao_id"]
-        if "grupo_id" in body:
-            usuarios.grupo_id = body["grupo_id"]
-            ###### Ajustar data/hora e id usuario atualizacao
-            usuarios.data_atualizacao = data_atualizacao
-            usuarios.hora_atualizacao = hora_atualizacao
-            usuarios.usuario_atualizacao_id = body["usuario_atualizacao_id"]
-        if "usuario_ativo" in body:
-            usuarios.usuario_ativo = body["usuario_ativo"]
-            ###### Ajustar data/hora e id usuario atualizacao
-            usuarios.data_atualizacao = data_atualizacao
-            usuarios.hora_atualizacao = hora_atualizacao
-            usuarios.usuario_atualizacao_id = body["usuario_atualizacao_id"]
-        if "entidade_id" in body:
-            usuarios.entidade_id = body["entidade_id"]
-            ###### Ajustar data/hora e id usuario atualizacao
-            usuarios.data_atualizacao = data_atualizacao
-            usuarios.hora_atualizacao = hora_atualizacao
-            usuarios.usuario_atualizacao_id = body["usuario_atualizacao_id"]
+        # Criação de variáveis para a validação se o usuário cupre os requisitos
+        login_usuario_id = current_user.usuario_id
+        login_entidade_id = current_user.entidade_id
+        login_admin = current_user.admin
+        login_editar = current_user.editar
 
-        db.session.add(usuarios)
-        db.session.commit()
-        return gera_response(200, "Usuarios", usuarios.to_json(), "Usuario atualizado com sucesso")
+        # IF para validar se o ID informado está cadastrado no banco de dados
+        if not Usuarios.query.filter_by(usuario_id=id).first():
+            return gera_response(400, "Usuarios", {}, f"Falha ao listar usuario! Mensagem: O usuário ID:{id} não existe!") 
+
+        usuarios = Usuarios.query.filter_by(usuario_id=id).first()
+        usuario_json = usuarios.to_json()
+        
+        # IF para validar se a entidade do usuário logado é igual ao do usuário informado
+        if usuario_json["entidade_id"] != login_entidade_id:
+            return gera_response(403, "Usuarios", {}, "Você não tem permissão para editar o usuário!")
+
+        # IF para validar se o usuário tem as permissões nencessárias para editar o usuário
+        if login_admin == True or login_editar == True:
+            if "usuario_email" in body:
+                usuarios.usuario_email = body["usuario_email"]
+                usuarios.data_atualizacao = data()
+                usuarios.hora_atualizacao = hora()
+                usuarios.usuario_atualizacao_id = login_usuario_id
+            if "usuario_senha" in body:
+                usuarios.usuario_senha = body["usuario_senha"]
+                usuarios.data_atualizacao = data()
+                usuarios.hora_atualizacao = hora()
+                usuarios.usuario_atualizacao_id = login_usuario_id
+            if "usuario_ativo" in body:
+                usuarios.usuario_ativo = body["usuario_ativo"]
+                usuarios.data_atualizacao = data()
+                usuarios.hora_atualizacao = hora()
+                usuarios.usuario_atualizacao_id = login_usuario_id
+            if "entidade_id" in body:
+                usuarios.entidade_id = body["entidade_id"]
+                usuarios.data_atualizacao = data()
+                usuarios.hora_atualizacao = hora()
+                usuarios.usuario_atualizacao_id = login_usuario_id
+            if "admin" in body:
+                usuarios.admin = body["admin"]
+                usuarios.data_atualizacao = data()
+                usuarios.hora_atualizacao = hora()
+                usuarios.usuario_atualizacao_id = login_usuario_id
+            if "cadastrar" in body:
+                usuarios.cadastrar = body["cadastrar"]
+                usuarios.data_atualizacao = data()
+                usuarios.hora_atualizacao = hora()
+                usuarios.usuario_atualizacao_id = login_usuario_id
+            if "editar" in body:
+                usuarios.editar = body["deletar"]
+                usuarios.data_atualizacao = data()
+                usuarios.hora_atualizacao = hora()
+                usuarios.usuario_atualizacao_id = login_usuario_id
+            if "visualizar" in body:
+                usuarios.visualizar = body["visualizar"]
+                usuarios.data_atualizacao = data()
+                usuarios.hora_atualizacao = hora()
+                usuarios.usuario_atualizacao_id = login_usuario_id
+
+            db.session.add(usuarios)
+            db.session.commit()
+            return gera_response(200, "Usuarios", usuarios.to_json(), "Usuario atualizado com sucesso!")
     except Exception as e:
         return gera_response(400, "Usuarios", {}, f"Erro ao Atualizar usuario:{e}")
 
-#Endpoint DELETE /usuarios/<id> para deletar um dispositivo
-def usuarios_deleta(id):
-    usuarios = Usuarios.query.filter_by(usuario_id=id).first()
+# Endpoint DELETE responsável por deletar um usuário
+# Deve ser informado o ID do usuário 
+def usuarios_deleta(id, current_user):
     try:
-        db.session.delete(usuarios)
-        db.session.commit()
-        return gera_response(200, "Dispositivo", usuarios.to_json(), "Usuario deletado com sucesso")
+        # Criação de variáveis para a validação se o usuário cupre os requisitos
+        login_entidade_id = current_user.entidade_id
+        login_admin = current_user.admin
+        login_deletar = current_user.deletar
+
+        # IF para validar se o ID informado está cadastrado no banco de dados
+        if not Usuarios.query.filter_by(usuario_id=id).first():
+            return gera_response(400, "Usuarios", {}, f"Falha ao listar usuario! Mensagem: O usuário ID:{id} não existe!")
+
+        usuarios = Usuarios.query.filter_by(usuario_id=id).first()
+        usuario_json = usuarios.to_json()
+        
+        # IF para validar se a entidade do usuário logado é igual ao do usuário informado
+        if usuario_json["entidade_id"] != login_entidade_id:
+            return gera_response(403, "Usuarios", {}, "Você não tem permissão para editar o usuário!")
+
+        # IF para validar se o usuário tem a permissão necessária para deletar o usuário
+        if login_admin == True or login_deletar == True:
+            db.session.delete(usuarios)
+            db.session.commit()
+            return gera_response(200, "Usuarios", usuarios.to_json(), "Usuario deletado com sucesso!")
     except Exception as e:
-        return gera_response(400, "Dispositivo", {}, f"Erro ao deletar Usuario:{e}")
-
-
-
+        return gera_response(400, "Usuarios", {}, f"Erro ao deletar usuario! Mensagem:{e}")
 
 ##################### Função para a geração de mensagens de erro/sucesso ########################
 def gera_response(status, nome_conteudo, conteudo, mensagem = False):
