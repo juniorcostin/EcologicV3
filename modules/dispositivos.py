@@ -150,14 +150,14 @@ def dispositivos_atualiza(id, body, current_user):
 
         # IF para validar se o ID informado está cadastrado no banco de dados
         if not Dispositivos.query.filter_by(dispositivo_id=id).first():
-            return gera_response(400, "Usuarios", {}, f"Falha ao atualizar dispositivo! Mensagem: O dispositivo ID:{id} não existe!") 
+            return gera_response(400, "Dispositivos", {}, f"Falha ao atualizar dispositivo! Mensagem: O dispositivo ID:{id} não existe!") 
 
         dispositivos = Dispositivos.query.filter_by(dispositivo_id=id).first()
         dispositivo_json = dispositivos.to_json()
         
         # IF para validar se a entidade do usuário logado é igual ao do usuário informado
         if dispositivo_json["entidade_id"] != login_entidade_id:
-            return gera_response(403, "Usuarios", {}, "Você não pertence a entidade deste usuário!")
+            return gera_response(403, "Dispositivos", {}, "Você não pertence a entidade deste dispositivo!")
 
         # IF para validar se o usuário tem as permissões nencessárias para editar o usuário
         if login_admin == True or login_editar == True:
@@ -181,28 +181,54 @@ def dispositivos_atualiza(id, body, current_user):
                 dispositivos.data_atualizacao = data()
                 dispositivos.hora_atualizacao = hora()
                 dispositivos.usuario_atualizacao_id = login_usuario_id
+            if "latitude" in body:
+                dispositivos.latitude = body["latitude"]
+                dispositivos.data_atualizacao = data()
+                dispositivos.hora_atualizacao = hora()
+                dispositivos.usuario_atualizacao_id = login_usuario_id
+            if "longitude" in body:
+                dispositivos.longitude = body["longitude"]
+                dispositivos.data_atualizacao = data()
+                dispositivos.hora_atualizacao = hora()
+                dispositivos.usuario_atualizacao_id = login_usuario_id
             db.session.add(dispositivos)
             db.session.commit()
-            return gera_response(200, "Dispositivo", dispositivos.to_json(), "Dispositivo atualizado com sucesso")
+            return gera_response(200, "Dispositivos", dispositivos.to_json(), "Dispositivo atualizado com sucesso!")
     except Exception as e:
-        return gera_response(400, "Dispositivo", {}, f"Erro ao Atualizar Dispositivo:{e}")
+        return gera_response(400, "Dispositivos", {}, f"Falha ao atualizar dispositivo! Mensagem:{e}")
 
-#Endpoint DELETE /dispositivos/<id> para deletar um dispositivo
-def dispositivos_deleta(id):
-    dispositivos = Dispositivos.query.filter_by(dispositivo_id=id).first()
+# Endpoint DELETE responsável por deletar um dispositivo
+# Deve ser informado o ID do dispositivo 
+def dispositivos_deleta(id, current_user):
     try:
-        db.session.delete(dispositivos)
-        db.session.commit()
-        return gera_response(200, "Dispositivo", dispositivos.to_json(), "Dispositivo deletado com sucesso")
+        # Criação de variáveis para a validação se o usuário cupre os requisitos
+        login_entidade_id = current_user.entidade_id
+        login_admin = current_user.admin
+        login_deletar = current_user.deletar
+
+        # IF para validar se o ID informado está cadastrado no banco de dados
+        if not Dispositivos.query.filter_by(dispositivo_id=id).first():
+            return gera_response(400, "Dispositivos", {}, f"Falha ao deletar dispositivo! Mensagem: O dispositivo ID:{id} não existe!")
+
+        dispositivo = Dispositivos.query.filter_by(dispositivo_id=id).first()
+        dispositivo_json = dispositivo.to_json()
+        
+        # IF para validar se a entidade do usuário logado é igual ao do usuário informado
+        if dispositivo_json["entidade_id"] != login_entidade_id:
+            return gera_response(403, "Dispositivos", {}, "Você não tem permissão para deletar o dispositivo!")
+
+        # IF para validar se o usuário tem a permissão necessária para deletar o usuário
+        if login_admin == True or login_deletar == True:
+            db.session.delete(dispositivo)
+            db.session.commit()
+            return gera_response(200, "Dispositivos", dispositivo.to_json(), "Dispositivo deletado com sucesso!")
     except Exception as e:
-        return gera_response(400, "Dispositivo", {}, f"Erro ao deletar Dispositivo:{e}")
+        return gera_response(400, "Dispositivos", {}, f"Erro ao deletar dispositivo! Mensagem:{e}")
 
 ##################### Função para a geração de mensagens de erro/sucesso ########################
 def gera_response(status, nome_conteudo, conteudo, mensagem = False):
     body = {}
     body[nome_conteudo] = conteudo
-
     if(mensagem):
         body["mensagem"] = mensagem
-
     return Response(json.dumps(body, default=str), status= status, mimetype="application/json")
