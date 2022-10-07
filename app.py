@@ -50,7 +50,7 @@ def seleciona_dispositivo(id, current_user):
 @jwt_required
 def cria_dispositivos(current_user):
         body = request.get_json()
-        return dispositivos_criar(body)
+        return dispositivos_criar(body, current_user)
     
 # Endpoint PUT que atualiza um dispositivo, sendo filtrado pelo ID
 # O ID deve ser informado na URL e também deve estar cadastrado no banco de dados
