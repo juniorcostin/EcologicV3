@@ -59,14 +59,14 @@ def cria_dispositivos(current_user):
 @jwt_required
 def atualiza_dispositivo(id, current_user):
         body = request.get_json()
-        return dispositivos_atualiza(id, body)
+        return dispositivos_atualiza(id, body, current_user)
 
 # Endpoint DELETE que deleta um dispositivo, sendo filtrado pelo ID
 # O ID deve ser informado na URL e também deve estar cadastrado no banco de dados
 @app.route(f"{api_endpoint_versao}dispositivos/<id>", methods=["DELETE"])
 @jwt_required
 def deleta_dispositivo(id, current_user):
-        return dispositivos_deleta(id)
+        return dispositivos_deleta(id, current_user)
     
 ####################### ENTIDADES #######################
 # Endpoints responsáveis pelo gerenciamento de Entidades dentro do banco de dados
@@ -75,14 +75,14 @@ def deleta_dispositivo(id, current_user):
 @app.route(f"{api_endpoint_versao}entidades", methods=["GET"])
 @jwt_required
 def seleciona_entidades(current_user):
-        return entidades_seleciona_todos()
+        return entidades_seleciona_todos(current_user)
 
 # Endpoint GET que lista apenas uma entidade, sendo filtrado pelo ID
 # O ID deve ser informado na URL e também deve estar cadastrado no banco de dados
 @app.route(f"{api_endpoint_versao}entidades/<id>", methods=["GET"])
 @jwt_required
 def seleciona_entidade(id, current_user):
-        return entidades_seleciona_um(id)
+        return entidades_seleciona_um(id, current_user)
 
 # Endpoint POST que inclui uma nova entidade no banco de dados
 # Deve ser informado um body no formato JSON com os campos corretos para que seja incluído
@@ -90,7 +90,7 @@ def seleciona_entidade(id, current_user):
 @jwt_required
 def cria_entidade(current_user):
         body = request.get_json()
-        return entidades_criar(body)
+        return entidades_criar(body, current_user)
 
 # Endpoint PUT que atualiza uma entidade, sendo filtrado pelo ID
 # O ID deve ser informado na URL e também deve estar cadastrado no banco de dados
@@ -99,14 +99,14 @@ def cria_entidade(current_user):
 @jwt_required
 def atualiza_entidade(id, current_user):
         body = request.get_json()
-        return entidade_atualiza(id, body)
+        return entidade_atualiza(id, body, current_user)
     
 # Endpoint DELETE que deleta uma entidade, sendo filtrado pelo ID
 # O ID deve ser informado na URL e também deve estar cadastrado no banco de dados
 @app.route(f"{api_endpoint_versao}entidades/<id>", methods=["DELETE"])
 @jwt_required
 def deleta_entidade(id, current_user):    
-        return entidade_deleta(id)
+        return entidade_deleta(id, current_user)
 
 ####################### USUARIOS #######################
 # Endpoints responsáveis pelo gerenciamento de Usuários dentro do banco de dados
