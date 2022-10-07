@@ -297,14 +297,14 @@ def usuarios_deleta(id, current_user):
 
         # IF para validar se o ID informado está cadastrado no banco de dados
         if not Usuarios.query.filter_by(usuario_id=id).first():
-            return gera_response(400, "Usuarios", {}, f"Falha ao listar usuario! Mensagem: O usuário ID:{id} não existe!")
+            return gera_response(400, "Usuarios", {}, f"Falha ao deletar usuario! Mensagem: O usuário ID:{id} não existe!")
 
         usuarios = Usuarios.query.filter_by(usuario_id=id).first()
         usuario_json = usuarios.to_json()
         
         # IF para validar se a entidade do usuário logado é igual ao do usuário informado
         if usuario_json["entidade_id"] != login_entidade_id:
-            return gera_response(403, "Usuarios", {}, "Você não tem permissão para editar o usuário!")
+            return gera_response(403, "Usuarios", {}, "Você não tem permissão para deletar o usuário!")
 
         # IF para validar se o usuário tem a permissão necessária para deletar o usuário
         if login_admin == True or login_deletar == True:
